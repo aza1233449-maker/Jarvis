@@ -1,0 +1,49 @@
+name: Construir Jarvis APK
+
+on:
+  workflow_dispatch:
+  push:
+    branches: [main]
+    paths:
+      - 'proyecto.zip'
+
+permissions:
+  contents: write
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Descomprimir el proyecto
+        run: |
+          mkdir proj
+          unzip -q proyecto.zip -d proj
+          ls -la proj
+
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: 17
+
+      - uses: gradle/actions/setup-gradle@v4
+        with:
+          gradle-version: 8.7
+
+      - name: Compilar APK
+        working-directory: proj
+        run: gradle assembleDebug --no-daemon --stacktrace
+
+      - name: Guardar APK como artefacto
+        uses: actions/upload-artifact@v4
+        with:
+          name: Jarvis-apk
+          path: proj/app/build/outputs/apk/debug/app-debug.apk
+
+      - name: Publicar en Releases
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          cp proj/app/build/outputs/apk/debug/app-debug.apk Jarvis-v2.apk
+          gh release create "v2-${{ github.run_number }}" Jarvis-v2.apk --repo "${{ github.repository }}" --title "Jarvis 2 (${{ github.run_number }})" --notes "APK de Jarvis 2. Desinstale la versión anterior antes de instalar."
